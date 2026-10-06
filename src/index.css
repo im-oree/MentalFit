@@ -1,1 +1,39 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", system-ui, sans-serif;
+  --color-ios-blue: #0a84ff;
+  --color-ios-green: #30d158;
+  --color-ios-red: #ff453a;
+  --color-ios-label-2: rgb(235 235 245 / 0.6);
+  --color-ios-label-3: rgb(235 235 245 / 0.3);
+  --color-ios-fill: rgb(118 118 128 / 0.24);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  background: #000;
+  color: #fff;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.glass {
+  background: rgb(30 30 30 / 0.55);
+  backdrop-filter: saturate(180%) blur(24px);
+  -webkit-backdrop-filter: saturate(180%) blur(24px);
+  border: 0.5px solid rgb(255 255 255 / 0.12);
+}
+
+.pt-safe {
+  padding-top: max(env(safe-area-inset-top), 12px);
+}
+
+.pb-safe {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
