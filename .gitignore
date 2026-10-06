@@ -1,22 +1,24 @@
 # Dependencies
 node_modules/
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
 
 # Build output
 dist/
 dist-ssr/
-*.local
-.env.local
-.env.*.local
+*.tsbuildinfo
 
-# Capacitor
-android/
-ios/
+# Env
+.env
+.env.*
+!.env.example
+*.local
+
+# Generated MediaPipe assets (recreated by `npm install`)
+public/mediapipe/
+
+# Capacitor (native projects keep their own .gitignore)
 .capacitor/
 
-# IDE & Editor
+# IDE & OS
 .vscode/*
 !.vscode/extensions.json
 .idea/
