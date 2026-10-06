@@ -16,9 +16,9 @@ export async function createPoseLandmarker(model: PoseModel) {
     baseOptions: { modelAssetPath: `${base}mediapipe/models/pose_landmarker_${model}.task`, delegate },
     runningMode: 'VIDEO' as const,
     numPoses: 1,
-    minPoseDetectionConfidence: 0.5,
-    minPosePresenceConfidence: 0.5,
-    minTrackingConfidence: 0.5,
+    minPoseDetectionConfidence: 0.6,
+    minPosePresenceConfidence: 0.6,
+    minTrackingConfidence: 0.6,
   })
   try {
     return { landmarker: await PoseLandmarker.createFromOptions(fileset, options('GPU')), delegate: 'GPU' as Delegate }
@@ -27,9 +27,8 @@ export async function createPoseLandmarker(model: PoseModel) {
   }
 }
 
-// Coordinates are normalized (0–1), so speeds are ~1/s; beta is scaled to match.
-const MIN_CUTOFF = 1.0
-const BETA = 8
+const MIN_CUTOFF = 1.2
+const BETA = 0.05
 
 export class LandmarkSmoother {
   private filters: { x: OneEuroFilter; y: OneEuroFilter; v: OneEuroFilter }[] = []
