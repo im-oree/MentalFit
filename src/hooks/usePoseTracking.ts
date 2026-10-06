@@ -1,17 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
 import type { PoseLandmarker } from '@mediapipe/tasks-vision'
-import { createPoseLandmarker, LandmarkSmoother } from '../pose/poseTracker'
+import { createPoseLandmarker, LandmarkSmoother, type Delegate, type PoseModel } from '../pose/poseTracker'
 import { drawSkeleton } from '../pose/drawSkeleton'
 
 export type TrackingState = 'loading' | 'searching' | 'tracking' | 'error'
 
+export type TrackingStats = {
+  fps: number
+  inferenceMs: number
+  delegate: Delegate | null
+  input: string
+}
+
+const EMPTY_STATS = { fps: 0, inferenceMs: 0, input: '–' }
+
 export function usePoseTracking(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
-  { active, showSkeleton }: { active: boolean; showSkeleton: boolean },
+  { active, showSkeleton, model }: { active: boolean; showSkeleton: boolean; model: PoseModel },
 ) {
-  const [state, setState] = useState<TrackingState>('loading')
-  const [fps, setFps] = useState(0)
+  const [loaded, setLoaded] = useState<{ model: PoseModel; delegate: Delegate } | null>(null)
+  const [failed, setFailed] = useState<PoseModel | null>(null)
+  const [tracking, setTracking] = useState(false)
+  const [stats, setStats] = useState(EMPTY_STATS)
   const landmarkerRef = useRef<PoseLandmarker | null>(null)
   const showRef = useRef(showSkeleton)
   useEffect(() => {
@@ -20,23 +31,21 @@ export function usePoseTracking(
 
   useEffect(() => {
     let disposed = false
-    createPoseLandmarker()
-      .then((lm) => {
-        if (disposed) lm.close()
-        else {
-          landmarkerRef.current = lm
-          setState('searching')
-        }
+    createPoseLandmarker(model)
+      .then(({ landmarker, delegate }) => {
+        if (disposed) return landmarker.close()
+        landmarkerRef.current = landmarker
+        setLoaded({ model, delegate })
       })
-      .catch(() => !disposed && setState('error'))
+      .catch(() => !disposed && setFailed(model))
     return () => {
       disposed = true
       landmarkerRef.current?.close()
       landmarkerRef.current = null
     }
-  }, [])
+  }, [model])
 
-  const ready = state !== 'loading' && state !== 'error'
+  const ready = loaded?.model === model
 
   useEffect(() => {
     if (!active || !ready) return
@@ -50,14 +59,14 @@ export function usePoseTracking(
     let handle = 0
     let lastVideoTime = -1
     let frames = 0
-    let fpsWindowStart = performance.now()
+    let inferTotal = 0
+    let windowStart = performance.now()
     let wasTracking = false
 
     const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 3)
-      const { clientWidth: w, clientHeight: h } = canvas
-      canvas.width = Math.round(w * dpr)
-      canvas.height = Math.round(h * dpr)
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      canvas.width = Math.round(canvas.clientWidth * dpr)
+      canvas.height = Math.round(canvas.clientHeight * dpr)
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
     resize()
@@ -75,10 +84,10 @@ export function usePoseTracking(
       if (!running || !landmarker) return
       if (video.readyState >= 2 && video.currentTime !== lastVideoTime) {
         lastVideoTime = video.currentTime
-        const now = performance.now()
-        const result = landmarker.detectForVideo(video, now)
-        const pose = result.landmarks[0]
-        const smoothed = pose ? smoother.smooth(pose, now) : null
+        const t0 = performance.now()
+        const pose = landmarker.detectForVideo(video, t0).landmarks[0]
+        const t1 = performance.now()
+        const smoothed = pose ? smoother.smooth(pose, t0) : null
         if (!pose) smoother.reset()
 
         drawSkeleton(ctx, showRef.current ? smoothed : null, {
@@ -90,13 +99,19 @@ export function usePoseTracking(
 
         if (!!pose !== wasTracking) {
           wasTracking = !!pose
-          setState(pose ? 'tracking' : 'searching')
+          setTracking(wasTracking)
         }
         frames++
-        if (now - fpsWindowStart >= 1000) {
-          setFps(Math.round((frames * 1000) / (now - fpsWindowStart)))
+        inferTotal += t1 - t0
+        if (t1 - windowStart >= 1000) {
+          setStats({
+            fps: Math.round((frames * 1000) / (t1 - windowStart)),
+            inferenceMs: Math.round(inferTotal / frames),
+            input: `${video.videoWidth}×${video.videoHeight}`,
+          })
           frames = 0
-          fpsWindowStart = now
+          inferTotal = 0
+          windowStart = t1
         }
       }
       schedule()
@@ -109,8 +124,11 @@ export function usePoseTracking(
       if (useVfc) video.cancelVideoFrameCallback(handle)
       else cancelAnimationFrame(handle)
       ctx.clearRect(0, 0, canvas.width, canvas.height)
+      setTracking(false)
     }
   }, [active, ready, videoRef, canvasRef])
 
-  return { state, fps }
+  const state: TrackingState = failed === model ? 'error' : !ready ? 'loading' : tracking ? 'tracking' : 'searching'
+  const fullStats: TrackingStats = { ...stats, delegate: loaded?.delegate ?? null }
+  return { state, stats: fullStats }
 }

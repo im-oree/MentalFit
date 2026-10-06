@@ -5,18 +5,19 @@ import { fileURLToPath } from 'node:url'
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const wasmSrc = resolve(root, 'node_modules/@mediapipe/tasks-vision/wasm')
 const wasmDest = resolve(root, 'public/mediapipe/wasm')
-const modelDest = resolve(root, 'public/mediapipe/models/pose_landmarker_full.task')
-const modelUrl =
-  'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/latest/pose_landmarker_full.task'
+const MODELS = ['lite', 'full', 'heavy']
 
 mkdirSync(wasmDest, { recursive: true })
 cpSync(wasmSrc, wasmDest, { recursive: true })
 
-if (!existsSync(modelDest)) {
-  mkdirSync(dirname(modelDest), { recursive: true })
-  const res = await fetch(modelUrl)
-  if (!res.ok) throw new Error(`Model download failed: ${res.status}`)
-  writeFileSync(modelDest, Buffer.from(await res.arrayBuffer()))
+for (const variant of MODELS) {
+  const name = `pose_landmarker_${variant}`
+  const dest = resolve(root, `public/mediapipe/models/${name}.task`)
+  if (existsSync(dest)) continue
+  mkdirSync(dirname(dest), { recursive: true })
+  const res = await fetch(`https://storage.googleapis.com/mediapipe-models/pose_landmarker/${name}/float16/latest/${name}.task`)
+  if (!res.ok) throw new Error(`${name} download failed: ${res.status}`)
+  writeFileSync(dest, Buffer.from(await res.arrayBuffer()))
 }
 
 console.log('MediaPipe assets ready')

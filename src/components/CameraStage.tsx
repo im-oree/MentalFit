@@ -4,8 +4,21 @@ import { SwitchCamera } from 'lucide-react'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import { useCamera } from '../hooks/useCamera'
 import { usePoseTracking } from '../hooks/usePoseTracking'
+import type { PoseModel } from '../pose/poseTracker'
 import { PermissionSheet } from './PermissionSheet'
+import { StatsPanel } from './StatsPanel'
 import { StatusPill } from './StatusPill'
+
+const MODEL_KEY = 'mentalfit.poseModel'
+const loadModel = (): PoseModel => {
+  try {
+    const m = localStorage.getItem(MODEL_KEY)
+    if (m === 'lite' || m === 'full' || m === 'heavy') return m
+  } catch {
+    /* storage unavailable */
+  }
+  return 'full'
+}
 
 function GlassButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
   return (
@@ -24,9 +37,19 @@ export function CameraStage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [showSkeleton, setShowSkeleton] = useState(true)
+  const [showStats, setShowStats] = useState(false)
+  const [model, setModel] = useState<PoseModel>(loadModel)
   const camera = useCamera(videoRef)
   const live = camera.status === 'live'
-  const { state, fps } = usePoseTracking(videoRef, canvasRef, { active: live, showSkeleton })
+  const { state, stats } = usePoseTracking(videoRef, canvasRef, { active: live, showSkeleton, model })
+  const chooseModel = (m: PoseModel) => {
+    setModel(m)
+    try {
+      localStorage.setItem(MODEL_KEY, m)
+    } catch {
+      /* storage unavailable */
+    }
+  }
   const mirror = camera.facing === 'user' ? '-scale-x-100' : ''
 
   return (
@@ -34,6 +57,7 @@ export function CameraStage() {
       className="relative h-dvh w-full overflow-hidden bg-black"
       onPointerDown={() => {
         if (live && videoRef.current?.paused) videoRef.current.play().catch(() => {})
+        setShowStats(false)
       }}
     >
       <video
@@ -57,8 +81,11 @@ export function CameraStage() {
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <div className="flex justify-center px-4">
-              <StatusPill state={state} fps={fps} />
+            <div className="flex flex-col items-center gap-2 px-4">
+              <StatusPill state={state} fps={stats.fps} onPress={() => setShowStats((v) => !v)} />
+              <AnimatePresence>
+                {showStats && <StatsPanel key="stats" stats={stats} model={model} onModel={chooseModel} />}
+              </AnimatePresence>
             </div>
             <div className="flex items-center justify-center gap-6 px-6">
               <GlassButton

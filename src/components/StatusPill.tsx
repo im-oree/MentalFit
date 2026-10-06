@@ -15,9 +15,15 @@ const DOT: Record<TrackingState, string> = {
   error: 'bg-ios-red',
 }
 
-export function StatusPill({ state, fps }: { state: TrackingState; fps: number }) {
+export function StatusPill({ state, fps, onPress }: { state: TrackingState; fps: number; onPress: () => void }) {
   return (
-    <motion.div layout className="glass flex h-9 items-center gap-2 rounded-full px-3.5 text-[15px] font-medium">
+    <motion.button
+      layout
+      whileTap={{ scale: 0.95 }}
+      onClick={onPress}
+      onPointerDown={(e) => e.stopPropagation()}
+      className="glass flex h-9 items-center gap-2 rounded-full px-3.5 text-[15px] font-medium"
+    >
       <span className="relative flex h-2 w-2">
         {state === 'tracking' && (
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ios-green opacity-60" />
@@ -38,6 +44,6 @@ export function StatusPill({ state, fps }: { state: TrackingState; fps: number }
       {state === 'tracking' && (
         <span className="ml-0.5 text-[13px] tabular-nums text-ios-label-2">{fps} fps</span>
       )}
-    </motion.div>
+    </motion.button>
   )
 }

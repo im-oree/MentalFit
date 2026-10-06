@@ -3,24 +3,33 @@ import { OneEuroFilter } from './oneEuroFilter'
 
 const base = import.meta.env.BASE_URL
 
+export type PoseModel = 'lite' | 'full' | 'heavy'
+export type Delegate = 'GPU' | 'CPU'
 export type SmoothedLandmark = { x: number; y: number; visibility: number }
 
-export async function createPoseLandmarker(): Promise<PoseLandmarker> {
-  const fileset = await FilesetResolver.forVisionTasks(`${base}mediapipe/wasm`)
-  const options = (delegate: 'GPU' | 'CPU') => ({
-    baseOptions: { modelAssetPath: `${base}mediapipe/models/pose_landmarker_full.task`, delegate },
+let filesetPromise: ReturnType<typeof FilesetResolver.forVisionTasks> | null = null
+
+export async function createPoseLandmarker(model: PoseModel) {
+  filesetPromise ??= FilesetResolver.forVisionTasks(`${base}mediapipe/wasm`)
+  const fileset = await filesetPromise
+  const options = (delegate: Delegate) => ({
+    baseOptions: { modelAssetPath: `${base}mediapipe/models/pose_landmarker_${model}.task`, delegate },
     runningMode: 'VIDEO' as const,
     numPoses: 1,
-    minPoseDetectionConfidence: 0.6,
-    minPosePresenceConfidence: 0.6,
-    minTrackingConfidence: 0.6,
+    minPoseDetectionConfidence: 0.5,
+    minPosePresenceConfidence: 0.5,
+    minTrackingConfidence: 0.5,
   })
   try {
-    return await PoseLandmarker.createFromOptions(fileset, options('GPU'))
+    return { landmarker: await PoseLandmarker.createFromOptions(fileset, options('GPU')), delegate: 'GPU' as Delegate }
   } catch {
-    return PoseLandmarker.createFromOptions(fileset, options('CPU'))
+    return { landmarker: await PoseLandmarker.createFromOptions(fileset, options('CPU')), delegate: 'CPU' as Delegate }
   }
 }
+
+// Coordinates are normalized (0–1), so speeds are ~1/s; beta is scaled to match.
+const MIN_CUTOFF = 1.0
+const BETA = 8
 
 export class LandmarkSmoother {
   private filters: { x: OneEuroFilter; y: OneEuroFilter; v: OneEuroFilter }[] = []
@@ -28,8 +37,8 @@ export class LandmarkSmoother {
   smooth(landmarks: NormalizedLandmark[], timestampMs: number): SmoothedLandmark[] {
     if (this.filters.length !== landmarks.length) {
       this.filters = landmarks.map(() => ({
-        x: new OneEuroFilter(1.2, 0.05),
-        y: new OneEuroFilter(1.2, 0.05),
+        x: new OneEuroFilter(MIN_CUTOFF, BETA),
+        y: new OneEuroFilter(MIN_CUTOFF, BETA),
         v: new OneEuroFilter(2.0, 0),
       }))
     }
