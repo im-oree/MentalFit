@@ -4,7 +4,15 @@ import type { CameraStatus } from '../hooks/useCamera'
 
 const ease = [0.32, 0.72, 0, 1] as const
 
-export function PermissionSheet({ status, onAllow }: { status: CameraStatus; onAllow: () => void }) {
+export function PermissionSheet({
+  status,
+  error,
+  onAllow,
+}: {
+  status: CameraStatus
+  error: string | null
+  onAllow: () => void
+}) {
   const denied = status === 'denied'
   const unavailable = status === 'unavailable'
   const busy = status === 'requesting' || status === 'checking'
@@ -44,9 +52,14 @@ export function PermissionSheet({ status, onAllow }: { status: CameraStatus; onA
           {denied
             ? 'Turn on camera access for MentalFit in Settings to track your form in real time.'
             : unavailable
-              ? 'MentalFit couldn’t open a camera on this device.'
+              ? 'MentalFit couldn’t start the camera. Close other apps using it and try again.'
               : 'MentalFit uses your camera to map your body and guide your form in real time.'}
         </motion.p>
+        {error && (
+          <p className="mt-4 max-w-[300px] rounded-xl bg-ios-fill px-3 py-2 font-mono text-[12px] leading-4 break-words text-ios-label-2">
+            {error}
+          </p>
+        )}
       </div>
 
       <motion.div
@@ -59,16 +72,14 @@ export function PermissionSheet({ status, onAllow }: { status: CameraStatus; onA
           <Lock className="h-3.5 w-3.5" />
           Processed on device. Nothing leaves your phone.
         </div>
-        {!unavailable && (
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={onAllow}
-            disabled={busy}
-            className="h-[50px] w-full max-w-md rounded-[14px] bg-ios-blue text-[17px] font-semibold text-white transition-opacity disabled:opacity-60"
-          >
-            {busy ? 'Opening Camera…' : denied ? 'Try Again' : 'Continue'}
-          </motion.button>
-        )}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={onAllow}
+          disabled={busy}
+          className="h-[50px] w-full max-w-md rounded-[14px] bg-ios-blue text-[17px] font-semibold text-white transition-opacity disabled:opacity-60"
+        >
+          {busy ? 'Opening Camera…' : denied || unavailable ? 'Try Again' : 'Continue'}
+        </motion.button>
       </motion.div>
     </motion.div>
   )

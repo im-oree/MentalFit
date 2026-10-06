@@ -30,7 +30,12 @@ export function CameraStage() {
   const mirror = camera.facing === 'user' ? '-scale-x-100' : ''
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-black">
+    <div
+      className="relative h-dvh w-full overflow-hidden bg-black"
+      onPointerDown={() => {
+        if (live && videoRef.current?.paused) videoRef.current.play().catch(() => {})
+      }}
+    >
       <video
         ref={videoRef}
         playsInline
@@ -71,7 +76,7 @@ export function CameraStage() {
       </AnimatePresence>
 
       <AnimatePresence>
-        {!live && <PermissionSheet key="permission" status={camera.status} onAllow={camera.request} />}
+        {!live && <PermissionSheet key="permission" status={camera.status} error={camera.error} onAllow={camera.request} />}
       </AnimatePresence>
     </div>
   )
