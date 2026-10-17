@@ -18,6 +18,7 @@ export function usePoseTracking(
   videoRef: React.RefObject<HTMLVideoElement | null>,
   canvasRef: React.RefObject<HTMLCanvasElement | null>,
   { active, showSkeleton, model }: { active: boolean; showSkeleton: boolean; model: PoseModel },
+  landmarksRef?: React.MutableRefObject<import('../pose/poseTracker').SmoothedLandmark[] | null>,
 ) {
   const [loaded, setLoaded] = useState<{ model: PoseModel; delegate: Delegate } | null>(null)
   const [failed, setFailed] = useState<PoseModel | null>(null)
@@ -89,6 +90,7 @@ export function usePoseTracking(
         const t1 = performance.now()
         const smoothed = pose ? smoother.smooth(pose, t0) : null
         if (!pose) smoother.reset()
+        if (landmarksRef) landmarksRef.current = smoothed
 
         drawSkeleton(ctx, showRef.current ? smoothed : null, {
           videoWidth: video.videoWidth,
