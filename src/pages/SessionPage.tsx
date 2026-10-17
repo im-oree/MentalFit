@@ -103,7 +103,7 @@ export function SessionPage() {
             className="absolute inset-0 w-full h-full object-cover"
             style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }}
           />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }} />
         </>
       )}
 
@@ -115,7 +115,7 @@ export function SessionPage() {
             className="absolute inset-0 w-full h-full object-cover"
             style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }}
           />
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }} />
         </div>
       )}
 
