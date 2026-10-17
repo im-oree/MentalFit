@@ -2,162 +2,100 @@ import { useEffect, useRef } from 'react'
 import * as maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { GeoPoint } from '../hooks/useGPS'
+import type { Feature, LineString } from 'geojson'
 
 interface RunMapProps {
   route: GeoPoint[]
   currentPosition: GeoPoint | null
-  interactive?: boolean
+  follow?: boolean
+  fitRoute?: boolean
   className?: string
 }
 
-const DARK_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    'openfreemap': {
-      type: 'vector',
-      url: 'https://tiles.openfreemap.org/planet',
-    },
-  },
-  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-  layers: [
-    {
-      id: 'background',
-      type: 'background',
-      paint: { 'background-color': '#131110' },
-    },
-    {
-      id: 'water',
-      type: 'fill',
-      source: 'openfreemap',
-      'source-layer': 'water',
-      paint: { 'fill-color': '#1a1816' },
-    },
-    {
-      id: 'landuse-park',
-      type: 'fill',
-      source: 'openfreemap',
-      'source-layer': 'landuse',
-      filter: ['==', 'class', 'park'],
-      paint: { 'fill-color': '#1c1a15' },
-    },
-    {
-      id: 'roads-minor',
-      type: 'line',
-      source: 'openfreemap',
-      'source-layer': 'transportation',
-      filter: ['all', ['!=', 'class', 'motorway'], ['!=', 'class', 'trunk']],
-      paint: {
-        'line-color': '#201e19',
-        'line-width': 1,
-      },
-    },
-    {
-      id: 'roads-major',
-      type: 'line',
-      source: 'openfreemap',
-      'source-layer': 'transportation',
-      filter: ['any', ['==', 'class', 'motorway'], ['==', 'class', 'trunk'], ['==', 'class', 'primary']],
-      paint: {
-        'line-color': '#2a2721',
-        'line-width': 2,
-      },
-    },
-    {
-      id: 'buildings',
-      type: 'fill',
-      source: 'openfreemap',
-      'source-layer': 'building',
-      paint: {
-        'fill-color': '#1a1816',
-        'fill-opacity': 0.6,
-      },
-    },
-  ],
-}
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/dark'
 
-export function RunMap({ route, currentPosition, interactive = false, className = '' }: RunMapProps) {
+const cssVar = (name: string, fallback: string) =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+
+const emptyLine = (): Feature<LineString> => ({
+  type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {},
+})
+
+export function RunMap({ route, currentPosition, follow = true, fitRoute = false, className = '' }: RunMapProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const markerRef = useRef<maplibregl.Marker | null>(null)
+  const readyRef = useRef(false)
+  const centeredRef = useRef(false)
+  const latest = useRef({ route, currentPosition })
+  latest.current = { route, currentPosition }
 
-  useEffect(() => {
-    if (!containerRef.current) return
-
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: DARK_STYLE,
-      center: currentPosition ? [currentPosition.lng, currentPosition.lat] : [3.3792, 6.5244],
-      zoom: 16,
-      attributionControl: false,
-      interactive,
-    })
-
-    map.on('load', () => {
-      map.addSource('route', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
-      })
-
-      map.addLayer({
-        id: 'route-glow',
-        type: 'line',
-        source: 'route',
-        paint: {
-          'line-color': '#d9c395',
-          'line-width': 8,
-          'line-opacity': 0.3,
-          'line-blur': 6,
-        },
-      })
-
-      map.addLayer({
-        id: 'route-line',
-        type: 'line',
-        source: 'route',
-        paint: {
-          'line-color': '#d9c395',
-          'line-width': 3,
-          'line-opacity': 0.9,
-        },
-        layout: {
-          'line-cap': 'round',
-          'line-join': 'round',
-        },
-      })
-    })
-
-    mapRef.current = map
-
-    const el = document.createElement('div')
-    el.style.cssText = 'width:14px;height:14px;background:#d9c395;border-radius:50%;border:3px solid #131110;box-shadow:0 0 12px #d9c39580;'
-    markerRef.current = new maplibregl.Marker({ element: el }).setLngLat([0, 0]).addTo(map)
-
-    return () => {
-      map.remove()
-      mapRef.current = null
-    }
-  }, [interactive])
-
-  useEffect(() => {
+  const sync = () => {
     const map = mapRef.current
-    if (!map || !map.isStyleLoaded()) return
+    if (!map || !readyRef.current) return
+    const { route, currentPosition } = latest.current
+    const coords = route.map((p) => [p.lng, p.lat])
+    ;(map.getSource('route') as maplibregl.GeoJSONSource | undefined)?.setData({ ...emptyLine(), geometry: { type: 'LineString', coordinates: coords } })
 
-    const coords = route.map((p) => [p.lng, p.lat] as [number, number])
-    const src = map.getSource('route') as maplibregl.GeoJSONSource | undefined
-    if (src) {
-      src.setData({
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: coords },
-        properties: {},
-      })
+    if (fitRoute && coords.length > 1) {
+      const bounds = coords.reduce((b, c) => b.extend(c as [number, number]), new maplibregl.LngLatBounds(coords[0] as [number, number], coords[0] as [number, number]))
+      map.fitBounds(bounds, { padding: 48, duration: 0 })
     }
 
     if (currentPosition) {
-      const lngLat: [number, number] = [currentPosition.lng, currentPosition.lat]
-      markerRef.current?.setLngLat(lngLat)
-      map.easeTo({ center: lngLat, duration: 500 })
+      const ll: [number, number] = [currentPosition.lng, currentPosition.lat]
+      markerRef.current?.setLngLat(ll).addTo(map)
+      if (!centeredRef.current) {
+        map.jumpTo({ center: ll, zoom: 16.5 })
+        centeredRef.current = true
+      } else if (follow) {
+        map.easeTo({ center: ll, duration: 600 })
+      }
     }
-  }, [route, currentPosition])
+  }
 
-  return <div ref={containerRef} className={`w-full h-full ${className}`} />
+  useEffect(() => {
+    if (!containerRef.current) return
+    const gold = cssVar('--color-accent-gold', '#d9c395')
+    const bg = cssVar('--color-dark-soft', '#15130f')
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: STYLE_URL,
+      center: [0, 20],
+      zoom: 1.5,
+      attributionControl: false,
+      pitchWithRotate: false,
+      dragRotate: false,
+    })
+    mapRef.current = map
+
+    map.on('load', () => {
+      if (map.getLayer('background')) map.setPaintProperty('background', 'background-color', bg)
+      map.addSource('route', { type: 'geojson', data: emptyLine() })
+      map.addLayer({ id: 'route-glow', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': gold, 'line-width': 12, 'line-opacity': 0.25, 'line-blur': 6 } })
+      map.addLayer({ id: 'route-line', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': gold, 'line-width': 4 } })
+      readyRef.current = true
+      sync()
+    })
+
+    const el = document.createElement('div')
+    el.className = 'h-4 w-4 rounded-full bg-accent-gold ring-4 ring-dark-soft shadow-[0_0_16px_var(--color-accent-gold)]'
+    markerRef.current = new maplibregl.Marker({ element: el })
+
+    const ro = new ResizeObserver(() => map.resize())
+    ro.observe(containerRef.current)
+
+    return () => {
+      ro.disconnect()
+      readyRef.current = false
+      centeredRef.current = false
+      map.remove()
+      mapRef.current = null
+    }
+  }, [])
+
+  useEffect(sync, [route, currentPosition, follow, fitRoute])
+
+  return <div ref={containerRef} className={`absolute inset-0 ${className}`} />
 }

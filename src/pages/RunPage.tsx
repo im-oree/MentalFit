@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { ArrowLeft, Play, Pause, Square, MapPin } from 'lucide-react'
 import { useGPS } from '../hooks/useGPS'
 import { useStore } from '../data/store'
@@ -16,7 +16,6 @@ export function RunPage() {
   const gps = useGPS()
   const { saveWorkout } = useStore()
   const [finished, setFinished] = useState(false)
-  const [paused, setPaused] = useState(false)
 
   const formatTime = (sec: number) => {
     const h = Math.floor(sec / 3600)
@@ -58,7 +57,7 @@ export function RunPage() {
       <div className="app-height bg-dark-soft text-white flex flex-col">
         {/* Summary map */}
         <div className="relative h-[45%] shrink-0">
-          <RunMap route={gps.route} currentPosition={null} className="opacity-80" />
+          <RunMap route={gps.route} currentPosition={null} follow={false} fitRoute className="opacity-80" />
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-dark-soft" />
           <div className="absolute top-0 left-0 right-0 safe-top px-5 z-10">
             <div className="flex items-center py-3">
@@ -94,9 +93,9 @@ export function RunPage() {
                 label="Top Speed"
               />
               <StatTile
-                value={String(gps.route.length)}
-                unit="pts"
-                label="GPS Points"
+                value={String(gps.steps)}
+                unit="steps"
+                label="Steps"
               />
             </div>
           )}
@@ -136,7 +135,7 @@ export function RunPage() {
           <div className="flex items-center gap-1.5">
             <MapPin className="h-3.5 w-3.5 text-accent-gold" />
             <span className="text-[10px] font-black uppercase tracking-[.14em] text-white/50">
-              {gps.tracking ? 'Tracking' : 'Ready'}
+              {gps.status === 'running' ? 'Tracking' : gps.status === 'paused' ? 'Paused' : gps.currentPosition ? 'GPS Ready' : 'Finding GPS'}
             </span>
           </div>
           <div className="w-11" />
@@ -164,6 +163,10 @@ export function RunPage() {
               {formatPace(gps.pace)}
             </div>
             <div className="text-[9px] font-black uppercase tracking-[.18em] text-white/40 mt-0.5">min/km</div>
+          </div>
+          <div className="text-center">
+            <div className="text-2xl font-black tabular-nums tracking-[-0.04em]">{gps.cadence || gps.steps}</div>
+            <div className="text-[9px] font-black uppercase tracking-[.18em] text-white/40 mt-0.5">{gps.cadence ? 'spm' : 'steps'}</div>
           </div>
         </div>
       </div>
@@ -201,10 +204,10 @@ export function RunPage() {
                 <Square className="h-6 w-6" fill="currentColor" />
               </button>
               <button
-                onClick={gps.start}
+                onClick={gps.status === 'paused' ? gps.resume : gps.pause}
                 className="tap grid h-20 w-20 place-items-center rounded-full bg-accent-gold text-dark-soft shadow-[0_0_30px_rgba(217,195,149,0.3)]"
               >
-                <Pause className="h-8 w-8" fill="currentColor" />
+                {gps.status === 'paused' ? <Play className="h-8 w-8 ml-1" fill="currentColor" /> : <Pause className="h-8 w-8" fill="currentColor" />}
               </button>
               <div className="w-16" />
             </>
