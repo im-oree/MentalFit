@@ -1,6 +1,6 @@
-import { Suspense, useRef, useEffect, useMemo } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { useGLTF, useAnimations, Environment, ContactShadows } from '@react-three/drei'
+import { Suspense, useRef, useEffect } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { useGLTF, useAnimations, Environment, ContactShadows, Center } from '@react-three/drei'
 import * as THREE from 'three'
 import type { ProgressionLevel } from '../../data/progression'
 
@@ -14,26 +14,39 @@ interface ModelProps {
   progression?: ProgressionLevel
 }
 
+function AutoFit({ children }: { children: React.ReactNode }) {
+  const { camera } = useThree()
+  const groupRef = useRef<THREE.Group>(null)
+
+  useEffect(() => {
+    if (!groupRef.current) return
+    const box = new THREE.Box3().setFromObject(groupRef.current)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    const maxDim = Math.max(size.x, size.y, size.z)
+
+    if (maxDim > 10) {
+      const s = 2 / maxDim
+      groupRef.current.scale.setScalar(s)
+      groupRef.current.position.set(-center.x * s, -box.min.y * s, -center.z * s)
+    }
+
+    const newBox = new THREE.Box3().setFromObject(groupRef.current)
+    const newCenter = newBox.getCenter(new THREE.Vector3())
+    ;(camera as THREE.PerspectiveCamera).lookAt(newCenter)
+  }, [camera])
+
+  return <group ref={groupRef}>{children}</group>
+}
+
 function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, totalSteps, progression }: ModelProps) {
   const group = useRef<THREE.Group>(null)
   const { scene, animations } = useGLTF(url)
   const { actions, names } = useAnimations(animations, group)
 
-  const clonedScene = useMemo(() => {
-    const clone = scene.clone(true)
-    const box = new THREE.Box3().setFromObject(clone)
-    const size = box.getSize(new THREE.Vector3())
-    const center = box.getCenter(new THREE.Vector3())
-    const maxDim = Math.max(size.x, size.y, size.z)
-    const scale = 2 / maxDim
-    clone.scale.setScalar(scale)
-    clone.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale)
-    return clone
-  }, [scene])
-
   useEffect(() => {
     if (!progression) return
-    clonedScene.traverse((obj) => {
+    scene.traverse((obj) => {
       if (!(obj instanceof THREE.Bone)) return
       const n = obj.name.toLowerCase()
       if (n.includes('spine') || n.includes('hips') || n.includes('abdomen')) {
@@ -44,7 +57,7 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
         obj.scale.set(...progression.limbScale)
       }
     })
-  }, [clonedScene, progression])
+  }, [scene, progression])
 
   useEffect(() => {
     const name = animationName ?? names[0]
@@ -63,9 +76,7 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
       action.paused = true
     }
 
-    return () => {
-      action.stop()
-    }
+    return () => { action.stop() }
   }, [actions, names, animationName, playing, speed])
 
   useEffect(() => {
@@ -89,7 +100,7 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
 
   return (
     <group ref={group} dispose={null}>
-      <primitive object={clonedScene} />
+      <primitive object={scene} />
     </group>
   )
 }
@@ -127,17 +138,19 @@ export function ExerciseModelViewer({
         <directionalLight position={[-3, 3, -3]} intensity={0.3} />
 
         <Suspense fallback={null}>
-          <AnimatedModel
-            url={modelUrl}
-            animationName={animationName}
-            playing={playing}
-            speed={speed}
-            currentStep={currentStep}
-            totalSteps={totalSteps}
-            progression={progression}
-          />
+          <AutoFit>
+            <AnimatedModel
+              url={modelUrl}
+              animationName={animationName}
+              playing={playing}
+              speed={speed}
+              currentStep={currentStep}
+              totalSteps={totalSteps}
+              progression={progression}
+            />
+          </AutoFit>
           <ContactShadows
-            position={[0, -1, 0]}
+            position={[0, 0, 0]}
             opacity={0.4}
             scale={5}
             blur={2.5}
@@ -145,7 +158,6 @@ export function ExerciseModelViewer({
           />
           <Environment preset="studio" />
         </Suspense>
-
       </Canvas>
     </div>
   )
