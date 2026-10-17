@@ -45,22 +45,7 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
   const { actions, names } = useAnimations(animations, group)
 
   useEffect(() => {
-    if (!progression) return
-    scene.traverse((obj) => {
-      if (!(obj instanceof THREE.Bone)) return
-      const n = obj.name.toLowerCase()
-      if (n.includes('spine') || n.includes('hips') || n.includes('abdomen')) {
-        obj.scale.set(...progression.torsoScale)
-      } else if (n.includes('shoulder') || n.includes('clavicle')) {
-        obj.scale.set(...progression.shoulderScale)
-      } else if (n.includes('arm') || n.includes('leg') || n.includes('thigh') || n.includes('calf')) {
-        obj.scale.set(...progression.limbScale)
-      }
-    })
-  }, [scene, progression])
-
-  useEffect(() => {
-    const name = animationName ?? names[0]
+    const name = names[0]
     if (!name || !actions[name]) return
 
     const action = actions[name]!
@@ -77,11 +62,11 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
     }
 
     return () => { action.stop() }
-  }, [actions, names, animationName, playing, speed])
+  }, [actions, names, playing, speed])
 
   useEffect(() => {
     if (currentStep === undefined || totalSteps === undefined) return
-    const name = animationName ?? names[0]
+    const name = names[0]
     if (!name || !actions[name]) return
 
     const action = actions[name]!
