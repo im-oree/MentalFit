@@ -90,7 +90,7 @@ export function SessionPage() {
       {showModel && !isGps ? (
         <ExerciseModelViewer
           modelUrl={MODEL_URL}
-          animationName={exercise.id}
+          exerciseId={exercise.id}
           playing={!finished}
           speed={0.8}
           progression={progression}

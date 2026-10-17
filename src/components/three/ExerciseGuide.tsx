@@ -90,7 +90,7 @@ export function ExerciseGuide({ exercise, modelUrl, progression, onStartSession,
       {/* 3D Model viewer */}
       <ExerciseModelViewer
         modelUrl={modelUrl}
-        animationName={exercise.id}
+        exerciseId={exercise.id}
         playing={playing}
         currentStep={playing ? undefined : currentStep}
         totalSteps={steps.length}

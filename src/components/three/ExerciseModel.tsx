@@ -1,98 +1,73 @@
-import { Suspense, useRef, useEffect } from 'react'
+import { Suspense, useEffect, useRef } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useGLTF, useAnimations, Environment, ContactShadows, Center } from '@react-three/drei'
+import { useGLTF, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
+import { HumanRig } from '../../rig/HumanRig'
+import { DEG } from '../../rig/limits'
+import { getMotion, samplePose, stepTime } from '../../rig/motions'
 import type { ProgressionLevel } from '../../data/progression'
-
-interface ModelProps {
-  url: string
-  animationName?: string
-  playing: boolean
-  speed?: number
-  currentStep?: number
-  totalSteps?: number
-  progression?: ProgressionLevel
-}
 
 function AutoFit({ children }: { children: React.ReactNode }) {
   const { camera } = useThree()
   const groupRef = useRef<THREE.Group>(null)
 
   useEffect(() => {
-    if (!groupRef.current) return
-    const box = new THREE.Box3().setFromObject(groupRef.current)
+    const g = groupRef.current
+    if (!g) return
+    const box = new THREE.Box3().setFromObject(g)
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
-    const maxDim = Math.max(size.x, size.y, size.z)
-
-    if (maxDim > 10) {
-      const s = 2 / maxDim
-      groupRef.current.scale.setScalar(s)
-      groupRef.current.position.set(-center.x * s, -box.min.y * s, -center.z * s)
-    }
-
-    const newBox = new THREE.Box3().setFromObject(groupRef.current)
-    const newCenter = newBox.getCenter(new THREE.Vector3())
-    ;(camera as THREE.PerspectiveCamera).lookAt(newCenter)
+    const s = 2 / size.y
+    g.scale.setScalar(s)
+    g.position.set(-center.x * s, -box.min.y * s, -center.z * s)
+    camera.lookAt(0, 0.8, 0)
   }, [camera])
 
   return <group ref={groupRef}>{children}</group>
 }
 
-function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, totalSteps, progression }: ModelProps) {
-  const group = useRef<THREE.Group>(null)
-  const { scene, animations } = useGLTF(url)
-  const { actions, names } = useAnimations(animations, group)
+interface ModelProps {
+  url: string
+  exerciseId: string
+  playing: boolean
+  speed?: number
+  currentStep?: number
+  totalSteps?: number
+}
+
+function RiggedModel({ url, exerciseId, playing, speed = 1, currentStep, totalSteps }: ModelProps) {
+  const { scene } = useGLTF(url)
+  const rigRoot = useRef<THREE.Group>(null)
+  const rig = useRef<HumanRig | null>(null)
+  const time = useRef(0)
+  const motion = getMotion(exerciseId)
+
+  useEffect(() => { rig.current = null; time.current = 0 }, [exerciseId, scene])
 
   useEffect(() => {
-    const name = names[0]
-    if (!name || !actions[name]) return
+    if (motion && currentStep !== undefined && totalSteps) time.current = stepTime(motion, currentStep, totalSteps)
+  }, [motion, currentStep, totalSteps])
 
-    const action = actions[name]!
-    action.reset()
-    action.setEffectiveTimeScale(speed)
-    action.setLoop(THREE.LoopRepeat, Infinity)
-    action.clampWhenFinished = true
-
-    if (playing) {
-      action.play()
-    } else {
-      action.play()
-      action.paused = true
-    }
-
-    return () => { action.stop() }
-  }, [actions, names, playing, speed])
-
-  useEffect(() => {
-    if (currentStep === undefined || totalSteps === undefined) return
-    const name = names[0]
-    if (!name || !actions[name]) return
-
-    const action = actions[name]!
-    const clip = action.getClip()
-    const stepDuration = clip.duration / totalSteps
-    action.time = currentStep * stepDuration
-    action.paused = true
-    action.play()
-  }, [currentStep, totalSteps, actions, names, animationName])
-
-  useFrame(() => {
-    if (group.current && !playing && currentStep === undefined) {
-      group.current.rotation.y += 0.003
-    }
+  useFrame((_, dt) => {
+    if (!motion || !rigRoot.current) return
+    rig.current ??= HumanRig.create(rigRoot.current, scene)
+    if (!rig.current) return
+    if (playing && currentStep === undefined) time.current += dt * speed
+    rig.current.apply(samplePose(motion, time.current), motion.kneePole, motion.elbowPole)
   })
 
   return (
-    <group ref={group} dispose={null}>
-      <primitive object={scene} />
+    <group rotation={[0, (motion?.view ?? 0) * DEG, 0]}>
+      <group ref={rigRoot}>
+        <primitive object={scene} />
+      </group>
     </group>
   )
 }
 
 interface ExerciseModelViewerProps {
   modelUrl: string
-  animationName?: string
+  exerciseId: string
   playing: boolean
   speed?: number
   currentStep?: number
@@ -101,47 +76,18 @@ interface ExerciseModelViewerProps {
   className?: string
 }
 
-export function ExerciseModelViewer({
-  modelUrl,
-  animationName,
-  playing,
-  speed,
-  currentStep,
-  totalSteps,
-  progression,
-  className = '',
-}: ExerciseModelViewerProps) {
+export function ExerciseModelViewer({ modelUrl, exerciseId, playing, speed, currentStep, totalSteps, className = '' }: ExerciseModelViewerProps) {
   return (
     <div className={`relative ${className}`}>
-      <Canvas
-        camera={{ position: [0, 1, 4], fov: 40 }}
-        gl={{ antialias: true, alpha: true }}
-        style={{ background: 'transparent' }}
-      >
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[5, 5, 5]} intensity={1} castShadow />
+      <Canvas camera={{ position: [0, 1.1, 4.2], fov: 38 }} gl={{ antialias: true, alpha: true }} style={{ background: 'transparent' }}>
+        <hemisphereLight args={["#ffffff", "#b8b2a6", 1.1]} />
+        <directionalLight position={[5, 5, 5]} intensity={1} />
         <directionalLight position={[-3, 3, -3]} intensity={0.3} />
-
         <Suspense fallback={null}>
           <AutoFit>
-            <AnimatedModel
-              url={modelUrl}
-              animationName={animationName}
-              playing={playing}
-              speed={speed}
-              currentStep={currentStep}
-              totalSteps={totalSteps}
-              progression={progression}
-            />
+            <RiggedModel url={modelUrl} exerciseId={exerciseId} playing={playing} speed={speed} currentStep={currentStep} totalSteps={totalSteps} />
           </AutoFit>
-          <ContactShadows
-            position={[0, 0, 0]}
-            opacity={0.4}
-            scale={5}
-            blur={2.5}
-            far={4}
-          />
-          <Environment preset="studio" />
+          <ContactShadows position={[0, 0, 0]} opacity={0.4} scale={5} blur={2.5} far={4} />
         </Suspense>
       </Canvas>
     </div>
