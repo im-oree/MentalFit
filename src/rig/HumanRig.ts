@@ -10,11 +10,16 @@ const KEYS = [
 ] as const
 type Key = (typeof KEYS)[number]
 type Bones = Record<Key, THREE.Bone>
-
 type RestPose = Map<THREE.Object3D, { q: THREE.Quaternion; p: THREE.Vector3 }>
 
 const normalizeName = (n: string) => n.replace(/^mixamorig:?/, '').replace(/_\d+$/, '')
-const X_AXIS = new THREE.Vector3(1, 0, 0)
+const UP = new THREE.Vector3(0, 1, 0)
+
+// Body frame: measured from the skeleton so any export orientation works. x = body's left, y = up, z = facing.
+interface BodyFrame {
+  left: THREE.Vector3
+  forward: THREE.Vector3
+}
 
 // Drives a Mixamo-style skeleton from a Pose: FK for hips/spine/neck, IK for limbs, all clamped to human limits.
 export class HumanRig {
@@ -22,11 +27,12 @@ export class HumanRig {
     private root: THREE.Object3D,
     private bones: Bones,
     private rest: RestPose,
-    private H: number,
-    private groundY: number,
-    private hipsRest: THREE.Vector3,
-    private lFootRest: THREE.Vector3,
-    private rFootRest: THREE.Vector3,
+    readonly frame: BodyFrame,
+    readonly H: number,
+    readonly groundY: number,
+    readonly hipsRest: THREE.Vector3,
+    private lFootNeutral: THREE.Vector3,
+    private rFootNeutral: THREE.Vector3,
   ) {}
 
   static create(root: THREE.Object3D, model: THREE.Object3D): HumanRig | null {
@@ -54,25 +60,40 @@ export class HumanRig {
     const groundY = Math.min(local(bones.LeftToeBase).y, local(bones.RightToeBase).y)
     const H = local(bones.HeadTop_End).y - groundY
 
-    return new HumanRig(root, bones, rest, H, groundY, local(bones.Hips), local(bones.LeftFoot), local(bones.RightFoot))
+    const lHip = local(bones.LeftUpLeg)
+    const rHip = local(bones.RightUpLeg)
+    const left = lHip.clone().sub(rHip).setY(0).normalize()
+    const forward = left.clone().cross(UP).normalize()
+
+    const ankleY = (local(bones.LeftFoot).y + local(bones.RightFoot).y) / 2
+    const hips = local(bones.Hips)
+    const stance = (hip: THREE.Vector3) => new THREE.Vector3(hip.x, ankleY, hip.z)
+
+    return new HumanRig(root, bones, rest, { left, forward }, H, groundY, hips, stance(lHip), stance(rHip))
   }
 
   private static restore(rest: RestPose) {
     rest.forEach(({ q, p }, o) => { o.quaternion.copy(q); o.position.copy(p) })
   }
 
+  private body([x, y, z]: Vec3, scale = 1) {
+    return this.frame.left.clone().multiplyScalar(x * scale).addScaledVector(UP, y * scale).addScaledVector(this.frame.forward, z * scale)
+  }
+
   private toWorld(v: THREE.Vector3) {
     return this.root.localToWorld(v)
   }
 
-  private worldDir([x, y, z]: Vec3, pitchQ: THREE.Quaternion) {
-    return new THREE.Vector3(x, y, z).applyQuaternion(pitchQ).transformDirection(this.root.matrixWorld)
+  private worldAxis(v: THREE.Vector3) {
+    return v.clone().transformDirection(this.root.matrixWorld)
   }
 
-  private worldAxisRotation(angle: number) {
-    const rootQ = this.root.getWorldQuaternion(new THREE.Quaternion())
-    const axis = X_AXIS.clone().applyQuaternion(rootQ)
-    return new THREE.Quaternion().setFromAxisAngle(axis, angle)
+  private bodyRotation(angle: number) {
+    return new THREE.Quaternion().setFromAxisAngle(this.worldAxis(this.frame.left), angle)
+  }
+
+  private poleDir(pole: Vec3, pitch: number) {
+    return this.worldAxis(this.body(pole).applyAxisAngle(this.frame.left, pitch))
   }
 
   apply(pose: Pose, kneePole: Vec3 = [0, 0, 1], elbowPole: Vec3 = [0, -0.3, -1]) {
@@ -80,27 +101,26 @@ export class HumanRig {
     HumanRig.restore(this.rest)
     this.root.updateMatrixWorld(true)
 
-    const hipsTarget = this.toWorld(this.hipsRest.clone().add(new THREE.Vector3(0, -pose.drop * H, pose.shiftZ * H)))
+    const hipsTarget = this.toWorld(this.hipsRest.clone().add(this.body([0, -pose.drop, pose.shiftZ], H)))
     b.Hips.position.copy(b.Hips.parent!.worldToLocal(hipsTarget))
     b.Hips.updateMatrixWorld(true)
 
     const pitch = clamp(pose.pitch, JOINT_LIMITS.hipPitch) * DEG
-    rotateWorld(b.Hips, this.worldAxisRotation(pitch))
+    rotateWorld(b.Hips, this.bodyRotation(pitch))
 
     const spine = clamp(pose.spine, JOINT_LIMITS.spine) * DEG
-    for (const s of [b.Spine, b.Spine1, b.Spine2]) rotateWorld(s, this.worldAxisRotation(spine / 3))
+    for (const s of [b.Spine, b.Spine1, b.Spine2]) rotateWorld(s, this.bodyRotation(spine / 3))
 
     const neck = clamp(-(pose.pitch + pose.spine) * 0.5, JOINT_LIMITS.neck) * DEG
-    rotateWorld(b.Neck, this.worldAxisRotation(neck))
+    rotateWorld(b.Neck, this.bodyRotation(neck))
 
-    const pitchQ = new THREE.Quaternion().setFromAxisAngle(X_AXIS, pitch)
+    const foot = (neutral: THREE.Vector3, offset: Vec3) => this.toWorld(neutral.clone().add(this.body(offset, H)))
+    solveTwoBone(b.LeftUpLeg, b.LeftLeg, b.LeftFoot, foot(this.lFootNeutral, pose.lFoot), this.poleDir([kneePole[0] + 0.15, kneePole[1], kneePole[2]], pitch), JOINT_LIMITS.knee)
+    solveTwoBone(b.RightUpLeg, b.RightLeg, b.RightFoot, foot(this.rFootNeutral, pose.rFoot), this.poleDir([kneePole[0] - 0.15, kneePole[1], kneePole[2]], pitch), JOINT_LIMITS.knee)
 
-    const foot = (rest: THREE.Vector3, [x, y, z]: Vec3) => this.toWorld(rest.clone().add(new THREE.Vector3(x * H, y * H, z * H)))
-    solveTwoBone(b.LeftUpLeg, b.LeftLeg, b.LeftFoot, foot(this.lFootRest, pose.lFoot), this.worldDir([0.15, 0, 1].map((v, i) => v + kneePole[i] - [0, 0, 1][i]) as Vec3, pitchQ), JOINT_LIMITS.knee)
-    solveTwoBone(b.RightUpLeg, b.RightLeg, b.RightFoot, foot(this.rFootRest, pose.rFoot), this.worldDir([-0.15 + kneePole[0], kneePole[1], kneePole[2]], pitchQ), JOINT_LIMITS.knee)
-
-    const hand = ([x, y, z]: Vec3) => this.toWorld(new THREE.Vector3(x * H, this.groundY + y * H, z * H))
-    solveTwoBone(b.LeftArm, b.LeftForeArm, b.LeftHand, hand(pose.lHand), this.worldDir([elbowPole[0] + 0.4, elbowPole[1], elbowPole[2]], pitchQ), JOINT_LIMITS.elbow)
-    solveTwoBone(b.RightArm, b.RightForeArm, b.RightHand, hand(pose.rHand), this.worldDir([elbowPole[0] - 0.4, elbowPole[1], elbowPole[2]], pitchQ), JOINT_LIMITS.elbow)
+    const origin = new THREE.Vector3(this.hipsRest.x, this.groundY, this.hipsRest.z)
+    const hand = (p: Vec3) => this.toWorld(origin.clone().add(this.body(p, H)))
+    solveTwoBone(b.LeftArm, b.LeftForeArm, b.LeftHand, hand(pose.lHand), this.poleDir([elbowPole[0] + 0.4, elbowPole[1], elbowPole[2]], pitch), JOINT_LIMITS.elbow)
+    solveTwoBone(b.RightArm, b.RightForeArm, b.RightHand, hand(pose.rHand), this.poleDir([elbowPole[0] - 0.4, elbowPole[1], elbowPole[2]], pitch), JOINT_LIMITS.elbow)
   }
 }
