@@ -11,10 +11,11 @@ const pose = (p: Partial<Pose>): Pose => ({
 })
 
 const STAND = pose({})
-const PLANK_HIGH = pose({ drop: 0.25, pitch: 78, ...hands(0.1, 0.02, 0.3), ...feet(0, 0, -0.5) })
-const PLANK_LOW = pose({ drop: 0.4, pitch: 87, ...hands(0.12, 0.04, 0.28), ...feet(0, 0, -0.6) })
+const PLANK_HIGH = pose({ drop: 0.31, pitch: 70, ...hands(0.12, 0.02, 0.23), ...feet(0, 0, -0.53) })
+const PLANK_LOW = pose({ drop: 0.4, pitch: 80, ...hands(0.14, 0.02, 0.22), ...feet(0, 0, -0.6) })
 const SQUAT_BOTTOM = pose({ drop: 0.22, shiftZ: -0.1, pitch: 35, spine: 10, ...hands(0.1, 0.62, 0.3), ...feet(0.03, 0, 0) })
 const CROUCH_HANDS_DOWN = pose({ drop: 0.3, shiftZ: -0.05, pitch: 50, spine: 15, ...hands(0.1, 0.02, 0.25), ...feet(0, 0, 0) })
+const FOREARM_PLANK = pose({ drop: 0.39, pitch: 80, ...hands(0.09, 0.03, 0.33), ...feet(0, 0, -0.6) })
 const SIDE_VIEW = -90
 const ELBOWS_BACK: Vec3 = [0, -1, -0.5]
 
@@ -54,11 +55,11 @@ export const MOTIONS: Record<string, Motion> = {
     ],
   },
   plank: {
-    view: SIDE_VIEW, duration: 3, stepTimes: [0, 1.5], elbowPole: ELBOWS_BACK,
+    view: SIDE_VIEW, duration: 3, stepTimes: [0, 1.5], elbowPole: [0, -0.3, 1],
     keys: [
-      { t: 0, pose: pose({ drop: 0.33, pitch: 82, ...hands(0.08, 0.02, 0.33), ...feet(0, 0, -0.47) }) },
-      { t: 1.5, pose: pose({ drop: 0.34, pitch: 83, ...hands(0.08, 0.02, 0.33), ...feet(0, 0, -0.47) }) },
-      { t: 3, pose: pose({ drop: 0.33, pitch: 82, ...hands(0.08, 0.02, 0.33), ...feet(0, 0, -0.47) }) },
+      { t: 0, pose: FOREARM_PLANK },
+      { t: 1.5, pose: { ...FOREARM_PLANK, drop: 0.4 } },
+      { t: 3, pose: FOREARM_PLANK },
     ],
   },
   burpee: {

@@ -49,6 +49,8 @@ export class HumanRig {
 
     let rest = model.userData.restPose as RestPose | undefined
     if (!rest) {
+      // GLB node transforms hold a frame of the exported animation; reset to the skin's bind pose first.
+      HumanRig.toBindPose(model)
       rest = new Map()
       model.traverse((o) => { if (o instanceof THREE.Bone) rest!.set(o, { q: o.quaternion.clone(), p: o.position.clone() }) })
       model.userData.restPose = rest
@@ -70,6 +72,28 @@ export class HumanRig {
     const stance = (hip: THREE.Vector3) => new THREE.Vector3(hip.x, ankleY, hip.z)
 
     return new HumanRig(root, bones, rest, { left, forward }, H, groundY, hips, stance(lHip), stance(rHip))
+  }
+
+  // Undeformed skin needs bone.matrixWorld = mesh.matrixWorld · bindMatrix⁻¹ · boneInverse⁻¹ (skeleton.pose() drops the mesh terms).
+  private static toBindPose(model: THREE.Object3D) {
+    let mesh: THREE.SkinnedMesh | undefined
+    model.traverse((o) => { if (!mesh && (o as THREE.SkinnedMesh).isSkinnedMesh) mesh = o as THREE.SkinnedMesh })
+    if (!mesh) return
+    model.updateMatrixWorld(true)
+    let rootBone: THREE.Object3D = mesh.skeleton.bones[0]
+    while (rootBone.parent && (rootBone.parent as THREE.Bone).isBone) rootBone = rootBone.parent
+    const base = rootBone.parent!.matrixWorld.clone().multiply(mesh.bindMatrix.clone().invert())
+    const { bones, boneInverses } = mesh.skeleton
+    const target = new THREE.Matrix4()
+    const local = new THREE.Matrix4()
+    model.traverse((o) => {
+      const i = bones.indexOf(o as THREE.Bone)
+      if (i < 0 || /_End/.test(o.name)) return
+      target.copy(base).multiply(boneInverses[i].clone().invert())
+      local.copy(o.parent!.matrixWorld).invert().multiply(target)
+      local.decompose(o.position, o.quaternion, o.scale)
+      o.updateMatrixWorld(true)
+    })
   }
 
   private static restore(rest: RestPose) {
