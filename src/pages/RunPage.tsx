@@ -143,14 +143,14 @@ export function RunPage() {
       </div>
 
       {/* Timer */}
-      <div className="absolute top-0 left-0 right-0 safe-top z-10 flex flex-col items-center pt-16">
+      <div className="pointer-events-none absolute top-0 left-0 right-0 safe-top z-10 flex flex-col items-center pt-16">
         <div className="text-[56px] font-black tabular-nums tracking-[-0.05em] leading-none text-white drop-shadow-[0_2px_16px_rgba(0,0,0,.5)]">
           {formatTime(gps.duration)}
         </div>
       </div>
 
       {/* Metrics row */}
-      <div className="absolute left-0 right-0 z-10" style={{ bottom: '45%' }}>
+      <div className="pointer-events-none absolute left-0 right-0 z-10" style={{ bottom: '45%' }}>
         <div className="flex justify-around px-8">
           <div className="text-center">
             <div className="text-2xl font-black tabular-nums tracking-[-0.04em]">
