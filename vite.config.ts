@@ -9,6 +9,9 @@ export default defineConfig({
     host: true,
     port: 5173,
   },
+  optimizeDeps: {
+    exclude: ['maplibre-gl'],
+  },
   build: {
     target: 'esnext',
     sourcemap: true,

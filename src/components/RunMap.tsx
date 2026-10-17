@@ -69,6 +69,7 @@ export function RunMap({ route, currentPosition, follow = true, fitRoute = false
       dragRotate: false,
     })
     mapRef.current = map
+    if (follow) map.setPadding({ top: 0, left: 0, right: 0, bottom: containerRef.current.clientHeight * 0.4 })
 
     map.on('load', () => {
       if (map.getLayer('background')) map.setPaintProperty('background', 'background-color', bg)
