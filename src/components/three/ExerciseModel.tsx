@@ -19,7 +19,17 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
   const { scene, animations } = useGLTF(url)
   const { actions, names } = useAnimations(animations, group)
 
-  const clonedScene = useMemo(() => scene.clone(true), [scene])
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone(true)
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    const maxDim = Math.max(size.x, size.y, size.z)
+    const scale = 2 / maxDim
+    clone.scale.setScalar(scale)
+    clone.position.set(-center.x * scale, -box.min.y * scale, -center.z * scale)
+    return clone
+  }, [scene])
 
   useEffect(() => {
     if (!progression) return
@@ -79,7 +89,7 @@ function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, to
 
   return (
     <group ref={group} dispose={null}>
-      <primitive object={clonedScene} scale={1} position={[0, -1, 0]} />
+      <primitive object={clonedScene} />
     </group>
   )
 }
@@ -108,7 +118,7 @@ export function ExerciseModelViewer({
   return (
     <div className={`relative ${className}`}>
       <Canvas
-        camera={{ position: [0, 0.5, 3], fov: 45 }}
+        camera={{ position: [0, 1, 4], fov: 40 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: 'transparent' }}
       >
