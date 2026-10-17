@@ -9,6 +9,7 @@ import { SessionPage } from './pages/SessionPage'
 import { RunPage } from './pages/RunPage'
 import { HistoryPage } from './pages/HistoryPage'
 import { ProfilePage } from './pages/ProfilePage'
+import { GuidePage } from './pages/GuidePage'
 
 export default function App() {
   const store = useStoreProvider()
@@ -37,6 +38,7 @@ export default function App() {
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/profile" element={<ProfilePage />} />
             </Route>
+            <Route path="/guide/:exerciseId" element={<GuidePage />} />
             <Route path="/session/:exerciseId" element={<SessionPage />} />
             <Route path="/run" element={<RunPage />} />
             <Route path="*" element={<Navigate to={onboarded ? '/home' : '/onboarding'} replace />} />

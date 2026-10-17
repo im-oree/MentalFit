@@ -2,6 +2,7 @@ import { Suspense, useRef, useEffect, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, useGLTF, useAnimations, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
+import type { ProgressionLevel } from '../../data/progression'
 
 interface ModelProps {
   url: string
@@ -10,14 +11,30 @@ interface ModelProps {
   speed?: number
   currentStep?: number
   totalSteps?: number
+  progression?: ProgressionLevel
 }
 
-function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, totalSteps }: ModelProps) {
+function AnimatedModel({ url, animationName, playing, speed = 1, currentStep, totalSteps, progression }: ModelProps) {
   const group = useRef<THREE.Group>(null)
   const { scene, animations } = useGLTF(url)
   const { actions, names } = useAnimations(animations, group)
 
   const clonedScene = useMemo(() => scene.clone(true), [scene])
+
+  useEffect(() => {
+    if (!progression) return
+    clonedScene.traverse((obj) => {
+      if (!(obj instanceof THREE.Bone)) return
+      const n = obj.name.toLowerCase()
+      if (n.includes('spine') || n.includes('hips') || n.includes('abdomen')) {
+        obj.scale.set(...progression.torsoScale)
+      } else if (n.includes('shoulder') || n.includes('clavicle')) {
+        obj.scale.set(...progression.shoulderScale)
+      } else if (n.includes('arm') || n.includes('leg') || n.includes('thigh') || n.includes('calf')) {
+        obj.scale.set(...progression.limbScale)
+      }
+    })
+  }, [clonedScene, progression])
 
   useEffect(() => {
     const name = animationName ?? names[0]
@@ -74,6 +91,7 @@ interface ExerciseModelViewerProps {
   speed?: number
   currentStep?: number
   totalSteps?: number
+  progression?: ProgressionLevel
   className?: string
 }
 
@@ -84,6 +102,7 @@ export function ExerciseModelViewer({
   speed,
   currentStep,
   totalSteps,
+  progression,
   className = '',
 }: ExerciseModelViewerProps) {
   return (
@@ -105,6 +124,7 @@ export function ExerciseModelViewer({
             speed={speed}
             currentStep={currentStep}
             totalSteps={totalSteps}
+            progression={progression}
           />
           <ContactShadows
             position={[0, -1, 0]}

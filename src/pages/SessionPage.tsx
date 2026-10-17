@@ -1,22 +1,25 @@
 import { useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowLeft, SwitchCamera } from 'lucide-react'
+import { ArrowLeft, SwitchCamera, Minimize2, Maximize2 } from 'lucide-react'
 import { useCamera } from '../hooks/useCamera'
 import { usePoseTracking } from '../hooks/usePoseTracking'
 import { useExerciseDetection } from '../hooks/useExerciseDetection'
 import { useStore } from '../data/store'
 import { getExercise, estimateCalories } from '../data/exercises'
+import { getProgressionFromWorkouts } from '../data/progression'
+import { ExerciseModelViewer } from '../components/three/ExerciseModel'
 import { PermissionSheet } from '../components/PermissionSheet'
 import { Button } from '../components/ui/Button'
 import type { SmoothedLandmark } from '../pose/poseTracker'
 
 const ease = [0.16, 1, 0.3, 1] as const
+const MODEL_URL = '/models/basemesh.glb'
 
 export function SessionPage() {
   const { exerciseId } = useParams<{ exerciseId: string }>()
   const navigate = useNavigate()
-  const { profile, saveWorkout } = useStore()
+  const { profile, saveWorkout, workouts } = useStore()
   const exercise = getExercise(exerciseId ?? '')
 
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -40,6 +43,9 @@ export function SessionPage() {
   )
 
   const [finished, setFinished] = useState(false)
+  const [showModel, setShowModel] = useState(true)
+
+  const progression = getProgressionFromWorkouts(workouts)
 
   if (!exercise) {
     navigate('/workouts', { replace: true })
@@ -47,6 +53,7 @@ export function SessionPage() {
   }
 
   const isTimed = exercise.trackingMode === 'timed'
+  const isGps = exercise.trackingMode === 'gps'
   const targetReached = isTimed
     ? detection.elapsed >= exercise.defaultTarget
     : detection.repCount >= exercise.defaultTarget
@@ -79,13 +86,40 @@ export function SessionPage() {
 
   return (
     <div className="relative app-height bg-black overflow-hidden">
-      <video
-        ref={videoRef}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }}
-      />
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40" />
+      {/* Main view: 3D model or camera */}
+      {showModel && !isGps ? (
+        <ExerciseModelViewer
+          modelUrl={MODEL_URL}
+          animationName={exercise.id}
+          playing={!finished}
+          speed={0.8}
+          progression={progression}
+          className="absolute inset-0 w-full h-full"
+        />
+      ) : (
+        <>
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }}
+          />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+        </>
+      )}
+
+      {/* PiP camera feed (lower-right corner) when model is main view */}
+      {showModel && !isGps && (
+        <div className="absolute bottom-28 right-4 z-20 w-[130px] h-[180px] rounded-2xl overflow-hidden shadow-[var(--shadow-lift)] ring-2 ring-white/20">
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ transform: camera.facing === 'user' ? 'scaleX(-1)' : undefined }}
+          />
+          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
+        </div>
+      )}
+
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/40 pointer-events-none" />
 
       {/* Top bar */}
       <div className="absolute top-0 left-0 right-0 safe-top px-5 z-10">
@@ -93,10 +127,20 @@ export function SessionPage() {
           <button onClick={() => navigate(-1)} className="tap grid h-11 w-11 place-items-center rounded-full bg-white/12 backdrop-blur-xl text-white">
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <span className="text-sm font-black text-white">{exercise.name}</span>
-          <button onClick={camera.flip} className="tap grid h-11 w-11 place-items-center rounded-full bg-white/12 backdrop-blur-xl text-white">
-            <SwitchCamera className="h-5 w-5" />
-          </button>
+          <span className="text-sm font-black text-white drop-shadow">{exercise.name}</span>
+          <div className="flex gap-2">
+            {!isGps && (
+              <button
+                onClick={() => setShowModel(!showModel)}
+                className="tap grid h-11 w-11 place-items-center rounded-full bg-white/12 backdrop-blur-xl text-white"
+              >
+                {showModel ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+              </button>
+            )}
+            <button onClick={camera.flip} className="tap grid h-11 w-11 place-items-center rounded-full bg-white/12 backdrop-blur-xl text-white">
+              <SwitchCamera className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -141,6 +185,11 @@ export function SessionPage() {
                   Target reached!
                 </motion.p>
               )}
+
+              {/* Progression label */}
+              <p className="mt-2 text-[9px] font-black uppercase tracking-[.14em] text-white/25">
+                {progression.label}
+              </p>
             </motion.div>
           ) : (
             <motion.div

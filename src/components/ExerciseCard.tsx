@@ -10,7 +10,7 @@ export function ExerciseCard({ exercise }: { exercise: Exercise }) {
 
   const handleTap = () => {
     if (exercise.trackingMode === 'gps') navigate('/run')
-    else navigate(`/session/${exercise.id}`)
+    else navigate(`/guide/${exercise.id}`)
   }
 
   return (

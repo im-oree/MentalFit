@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Play, Pause, SkipForward, RotateCcw } from 'lucide-react'
 import { ExerciseModelViewer } from './ExerciseModel'
-import { Button } from '../components/ui/Button'
-import type { Exercise } from '../types/exercise'
+import { Button } from '../ui/Button'
+import type { Exercise } from '../../types/exercise'
+import type { ProgressionLevel } from '../../data/progression'
 
 const EXERCISE_STEPS: Record<string, { label: string; cue: string }[]> = {
   pushup: [
@@ -49,11 +50,12 @@ const ease = [0.16, 1, 0.3, 1] as const
 interface ExerciseGuideProps {
   exercise: Exercise
   modelUrl: string
+  progression?: ProgressionLevel
   onStartSession: () => void
   onBack: () => void
 }
 
-export function ExerciseGuide({ exercise, modelUrl, onStartSession, onBack }: ExerciseGuideProps) {
+export function ExerciseGuide({ exercise, modelUrl, progression, onStartSession, onBack }: ExerciseGuideProps) {
   const steps = EXERCISE_STEPS[exercise.id] ?? [{ label: 'Perform', cue: exercise.description }]
   const [currentStep, setCurrentStep] = useState(0)
   const [playing, setPlaying] = useState(false)
@@ -94,6 +96,7 @@ export function ExerciseGuide({ exercise, modelUrl, onStartSession, onBack }: Ex
         playing={playing}
         currentStep={playing ? undefined : currentStep}
         totalSteps={steps.length}
+        progression={progression}
         className="flex-1 min-h-0"
       />
 
