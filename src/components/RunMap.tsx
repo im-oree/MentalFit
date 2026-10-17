@@ -97,5 +97,9 @@ export function RunMap({ route, currentPosition, follow = true, fitRoute = false
 
   useEffect(sync, [route, currentPosition, follow, fitRoute])
 
-  return <div ref={containerRef} className={`absolute inset-0 ${className}`} />
+  return (
+    <div className={`absolute inset-0 ${className}`}>
+      <div ref={containerRef} className="h-full w-full" />
+    </div>
+  )
 }
