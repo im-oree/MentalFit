@@ -14,7 +14,6 @@ export class LungeDetector implements ExerciseDetector {
     const leftKnee = angleDeg(landmarks[L.LEFT_HIP], landmarks[L.LEFT_KNEE], landmarks[L.LEFT_ANKLE])
     const rightKnee = angleDeg(landmarks[L.RIGHT_HIP], landmarks[L.RIGHT_KNEE], landmarks[L.RIGHT_ANKLE])
     const minKnee = Math.min(leftKnee, rightKnee)
-    const maxKnee = Math.max(leftKnee, rightKnee)
 
     let feedback: string | null = null
     let repCompleted = false

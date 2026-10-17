@@ -45,8 +45,6 @@ const EXERCISE_STEPS: Record<string, { label: string; cue: string }[]> = {
   ],
 }
 
-const ease = [0.16, 1, 0.3, 1] as const
-
 interface ExerciseGuideProps {
   exercise: Exercise
   modelUrl: string

@@ -1,5 +1,5 @@
 import type { ExerciseDetector, DetectionResult } from './types'
-import { angleDeg, avgAngle } from './angles'
+import { avgAngle } from './angles'
 import { L } from '../pose/landmarks'
 
 export class PushupDetector implements ExerciseDetector {

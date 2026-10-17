@@ -1,6 +1,6 @@
 import { Suspense, useRef, useEffect, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, useGLTF, useAnimations, Environment, ContactShadows } from '@react-three/drei'
+import { useGLTF, useAnimations, Environment, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
 import type { ProgressionLevel } from '../../data/progression'
 
@@ -136,13 +136,6 @@ export function ExerciseModelViewer({
           <Environment preset="studio" />
         </Suspense>
 
-        <OrbitControls
-          enablePan={false}
-          enableZoom={false}
-          minPolarAngle={Math.PI / 4}
-          maxPolarAngle={Math.PI / 2}
-          target={[0, 0, 0]}
-        />
       </Canvas>
     </div>
   )

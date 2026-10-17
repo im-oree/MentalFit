@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import { get, set, del } from 'idb-keyval'
 import type { UserProfile } from '../types/user'
 import type { WorkoutSession } from '../types/workout'
-import { DEFAULT_PROFILE } from '../types/user'
+
 
 type StoreContextValue = {
   profile: UserProfile | null

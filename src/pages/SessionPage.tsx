@@ -234,7 +234,7 @@ export function SessionPage() {
       )}
 
       {(camera.status === 'prompt' || camera.status === 'denied' || camera.status === 'unavailable') && (
-        <PermissionSheet status={camera.status} error={camera.error} onRequest={camera.request} />
+        <PermissionSheet status={camera.status} error={camera.error} onAllow={camera.request} />
       )}
     </div>
   )

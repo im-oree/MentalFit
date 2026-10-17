@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowRight, ChevronRight, Flame, Trophy, Zap } from 'lucide-react'
+import { ArrowRight, ChevronRight, Zap } from 'lucide-react'
 import { useStore } from '../data/store'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
