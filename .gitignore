@@ -1,24 +1,39 @@
-# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
+# Dependencies
+node_modules/
 
-node_modules
-dist
-dist-ssr
+# Build output
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+# Env
+.env
+.env.*
+!.env.example
 *.local
 
-# Editor directories and files
+# Generated MediaPipe assets (recreated by `npm install`)
+public/mediapipe/
+
+# Capacitor (native projects keep their own .gitignore)
+.capacitor/
+
+# IDE & OS
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*

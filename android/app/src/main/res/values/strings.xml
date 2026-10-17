@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">MentalFit</string>
+    <string name="title_activity_main">MentalFit</string>
+    <string name="package_name">com.mental.fit</string>
+    <string name="custom_url_scheme">com.mental.fit</string>
+</resources>

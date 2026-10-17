@@ -1,1 +1,148 @@
 @import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  /* Warm surface system */
+  --color-ink: #050505;
+  --color-paper: #f1efe8;
+  --color-bone: #f6f2e9;
+  --color-muted: #747780;
+  --color-dark: #171512;
+  --color-dark-card: #131110;
+  --color-dark-soft: #15130f;
+
+  /* Accent — used sparingly on states */
+  --color-accent: #0a84ff;
+  --color-accent-green: #30d158;
+  --color-accent-red: #ff453a;
+  --color-accent-gold: #d9c395;
+  --color-accent-gold-glow: #d8c7a3;
+
+  /* Shadows */
+  --shadow-soft: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --shadow-lift: 0 18px 50px rgba(15, 23, 42, 0.14);
+  --shadow-glow: 0 18px 70px rgba(0, 0, 0, 0.18);
+
+  /* Legacy aliases */
+  --color-ios-blue: var(--color-accent);
+  --color-ios-green: var(--color-accent-green);
+  --color-ios-red: var(--color-accent-red);
+  --color-ios-label-2: var(--color-muted);
+  --color-ios-label-3: rgb(116 119 128 / 0.5);
+  --color-ios-fill: rgb(118 118 128 / 0.24);
+}
+
+@layer base {
+  html, body, #root {
+    min-height: 100%;
+    margin: 0;
+  }
+
+  html {
+    overscroll-behavior: none;
+  }
+
+  body {
+    background: #050505;
+    color: #050505;
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: geometricPrecision;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+
+  button, input, textarea, select {
+    font: inherit;
+  }
+
+  button {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+
+  input, textarea {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
+}
+
+@layer components {
+  .app-height {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  .safe-bottom {
+    padding-bottom: max(0.4rem, env(safe-area-inset-bottom));
+  }
+
+  .tap {
+    @apply transition duration-200 active:scale-[0.98];
+  }
+
+  .glass-card {
+    @apply border border-white/55 backdrop-blur-xl;
+    background: rgba(245, 242, 235, 0.82);
+    box-shadow: var(--shadow-soft), inset 0 0 0 1px rgba(15, 23, 42, 0.045);
+  }
+
+  .glass-dark {
+    background: rgba(19, 17, 16, 0.78);
+    backdrop-filter: saturate(180%) blur(24px);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .soft-dark {
+    background: #15130f;
+  }
+
+  .shimmer-sweep {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer-sweep::after {
+    content: '';
+    position: absolute;
+    inset: -60% auto -60% -80%;
+    width: 45%;
+    transform: rotate(18deg);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+    animation: sweep 3.4s ease-in-out infinite;
+    pointer-events: none;
+  }
+}
+
+@keyframes sweep {
+  0%, 38% { left: -80%; }
+  72%, 100% { left: 135%; }
+}
+
+@keyframes fade-up {
+  0% { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  0% { opacity: 0; transform: scale(.96); }
+  100% { opacity: 1; transform: scale(1); }
+}
